@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "dmcplus",
+  "version": "${version}",
+  "name": "DMCPlus",
+  "description": "Клиентский Fabric-мод для сервера dmc-minecraft.net, который облегчает игру и добавляет удобные инструменты для DMC.",
+  "authors": [
+    "sawiq_"
+  ],
+  "contact": {
+    "homepage": "https://store.dmc-minecraft.net/",
+    "sources": "https://github.com/imsawiq/DMCPlus",
+    "issues": "https://github.com/imsawiq/DMCPlus/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/dmcplus/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "org.sawiq.dmcplus.client.DmcplusClient"
+    ],
+    "main": [
+      "org.sawiq.dmcplus.Dmcplus"
+    ]
+  },
+  "mixins": [
+    "dmcplus.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "mcef": "*",
+    "minecraft": ">=1.21.6 <=1.21.8"
+  }
+}
