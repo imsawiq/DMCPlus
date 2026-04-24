@@ -2,10 +2,7 @@
 [![Telegram](https://cdn.modrinth.com/data/cached_images/427191a5338bdb91473ec14f1c0f23ef4b1cc503.png)](https://t.me/dmcminecraft)
 [![Modrinth](https://cdn.modrinth.com/data/cached_images/8c19cfdc411d54a7931f0270c6526a8f19876e68.png)](https://modrinth.com/mod/dmcplus)
 [![Github](https://cdn.modrinth.com/data/cached_images/09cbfd6631bbb2c1b4fb9fc32395003f01ec76f4.png)](https://github.com/imsawiq/DMCPlus)
-
 # EN
-
-# DMCPlus
 
 Client-side Fabric mod for **dmc-minecraft.net** that adds useful features for a more comfortable gameplay experience: navigation, map, trading tools, QR scanner, and assistance for guards!
 
@@ -28,11 +25,7 @@ Client-side Fabric mod for **dmc-minecraft.net** that adds useful features for a
 
 - **Server:** [dmc-minecraft.net](https://dmc-minecraft.net)  
 - **Map:** [map.dmc-minecraft.net](https://map.dmc-minecraft.net)  
-
-
 # RU
-
-# DMCPlus
 
 Клиентский Fabric-мод для **dmc-minecraft.net**, который добавляет полезные функции для удобной игры на сервере: навигацию, карту, торговые инструменты, QR-сканер и помощь для гвардейцев!
 
