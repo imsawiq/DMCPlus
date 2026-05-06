@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   mirror:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
@@ -16,61 +16,47 @@ jobs:
           ref: gh-pages
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download java-cef builds from cinemamod
-        shell: pwsh
+      - name: Download java-cef builds from Keksuccino GitHub mirror
         run: |
-          $commit = "eaeb3d4370aa3526ee237ad1981ad59af3de4dd1"
-          $dest = "java-cef-builds/$commit"
-          New-Item -ItemType Directory -Path $dest -Force | Out-Null
+          COMMIT="eaeb3d4370aa3526ee237ad1981ad59af3de4dd1"
+          DEST="java-cef-builds/${COMMIT}"
+          mkdir -p "${DEST}"
 
-          $base = "https://mcef-download.cinemamod.com/java-cef-builds/$commit"
-          $platforms = @("windows-amd64", "linux-amd64", "macos-amd64")
+          # Keksuccino hosts builds on GitHub releases (not blocked in RU)
+          BASE="https://github.com/Keksuccino/mcef_resources/releases/download/java-cef-${COMMIT}"
 
-          $headers = @{
-            "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            "Accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-            "Accept-Language" = "en-US,en;q=0.5"
-            "Accept-Encoding" = "gzip, deflate, br"
-            "DNT" = "1"
-            "Connection" = "keep-alive"
-            "Upgrade-Insecure-Requests" = "1"
-            "Sec-Fetch-Dest" = "document"
-            "Sec-Fetch-Mode" = "navigate"
-            "Sec-Fetch-Site" = "none"
-            "Sec-Fetch-User" = "?1"
-            "Cache-Control" = "max-age=0"
-          }
+          # Map MCEF platform names to Keksuccino release asset names
+          declare -A PLATFORMS=(
+            ["windows-amd64"]="windows_amd64"
+            ["linux-amd64"]="linux_amd64"
+            ["macos-amd64"]="macos_amd64"
+          )
 
-          foreach ($plat in $platforms) {
-            Write-Host "Downloading $plat..."
+          for MCEF_PLATFORM in "${!PLATFORMS[@]}"; do
+            KEK_PLATFORM="${PLATFORMS[$MCEF_PLATFORM]}"
+            echo "Downloading ${MCEF_PLATFORM} (from ${KEK_PLATFORM})..."
 
-            $url1 = "$base/$plat.tar.gz"
-            $out1 = "$dest/$plat.tar.gz"
-            try {
-              Invoke-WebRequest -Uri $url1 -OutFile $out1 -Headers $headers -MaximumRedirection 5
-              Write-Host "  -> OK ($([math]::Round((Get-Item $out1).Length / 1MB, 2)) MB)"
-            } catch {
-              Write-Error "Failed to download $url1 : $_"
+            curl -fsSL -A "Mozilla/5.0" \
+              "${BASE}/${KEK_PLATFORM}.tar.gz" \
+              -o "${DEST}/${MCEF_PLATFORM}.tar.gz" || {
+              echo "ERROR: Failed to download ${KEK_PLATFORM}.tar.gz"
               exit 1
             }
 
-            $url2 = "$base/$plat.tar.gz.sha256"
-            $out2 = "$dest/$plat.tar.gz.sha256"
-            try {
-              Invoke-WebRequest -Uri $url2 -OutFile $out2 -Headers $headers -MaximumRedirection 5
-            } catch {
-              Write-Error "Failed to download $url2 : $_"
+            curl -fsSL -A "Mozilla/5.0" \
+              "${BASE}/${KEK_PLATFORM}.tar.gz.sha256" \
+              -o "${DEST}/${MCEF_PLATFORM}.tar.gz.sha256" || {
+              echo "ERROR: Failed to download ${KEK_PLATFORM}.tar.gz.sha256"
               exit 1
             }
-          }
+          done
 
-          Get-ChildItem $dest | Select-Object Name, @{N="SizeMB";E={[math]::Round($_.Length/1MB,2)}}
+          ls -lah "${DEST}"
 
       - name: Push to gh-pages
-        shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add java-cef-builds/
-          git commit -m "Mirror MCEF java-cef builds for commit eaeb3d4" -ErrorAction SilentlyContinue
+          git commit -m "Mirror MCEF java-cef builds from Keksuccino GitHub (commit eaeb3d4)" || echo "Nothing to commit"
           git push origin gh-pages
