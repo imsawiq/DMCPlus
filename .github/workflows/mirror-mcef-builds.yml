@@ -26,13 +26,28 @@ jobs:
           $base = "https://mcef-download.cinemamod.com/java-cef-builds/$commit"
           $platforms = @("windows-amd64", "linux-amd64", "macos-amd64")
 
+          $headers = @{
+            "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "Accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+            "Accept-Language" = "en-US,en;q=0.5"
+            "Accept-Encoding" = "gzip, deflate, br"
+            "DNT" = "1"
+            "Connection" = "keep-alive"
+            "Upgrade-Insecure-Requests" = "1"
+            "Sec-Fetch-Dest" = "document"
+            "Sec-Fetch-Mode" = "navigate"
+            "Sec-Fetch-Site" = "none"
+            "Sec-Fetch-User" = "?1"
+            "Cache-Control" = "max-age=0"
+          }
+
           foreach ($plat in $platforms) {
             Write-Host "Downloading $plat..."
 
             $url1 = "$base/$plat.tar.gz"
             $out1 = "$dest/$plat.tar.gz"
             try {
-              Invoke-WebRequest -Uri $url1 -OutFile $out1 -Headers @{ "User-Agent" = "Mozilla/5.0" } -MaximumRedirection 5
+              Invoke-WebRequest -Uri $url1 -OutFile $out1 -Headers $headers -MaximumRedirection 5
               Write-Host "  -> OK ($([math]::Round((Get-Item $out1).Length / 1MB, 2)) MB)"
             } catch {
               Write-Error "Failed to download $url1 : $_"
@@ -42,7 +57,7 @@ jobs:
             $url2 = "$base/$plat.tar.gz.sha256"
             $out2 = "$dest/$plat.tar.gz.sha256"
             try {
-              Invoke-WebRequest -Uri $url2 -OutFile $out2 -Headers @{ "User-Agent" = "Mozilla/5.0" } -MaximumRedirection 5
+              Invoke-WebRequest -Uri $url2 -OutFile $out2 -Headers $headers -MaximumRedirection 5
             } catch {
               Write-Error "Failed to download $url2 : $_"
               exit 1
