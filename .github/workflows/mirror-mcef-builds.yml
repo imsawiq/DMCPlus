@@ -2,16 +2,13 @@ name: Mirror MCEF java-cef builds to GitHub Pages
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'mcef-mirror*'
 
 permissions:
   contents: write
 
 jobs:
   mirror:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
@@ -20,36 +17,45 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download java-cef builds from cinemamod
+        shell: pwsh
         run: |
-          COMMIT="eaeb3d4370aa3526ee237ad1981ad59af3de4dd1"
-          mkdir -p "java-cef-builds/${COMMIT}"
-          cd "java-cef-builds/${COMMIT}"
+          $commit = "eaeb3d4370aa3526ee237ad1981ad59af3de4dd1"
+          $dest = "java-cef-builds/$commit"
+          New-Item -ItemType Directory -Path $dest -Force | Out-Null
 
-          BASE="https://mcef-download.cinemamod.com/java-cef-builds/${COMMIT}"
+          $base = "https://mcef-download.cinemamod.com/java-cef-builds/$commit"
+          $platforms = @("windows-amd64", "linux-amd64", "macos-amd64")
 
-          for PLATFORM in windows-amd64 linux-amd64 macos-amd64; do
-            echo "Downloading ${PLATFORM}..."
-            curl -fsSL -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
-              "${BASE}/${PLATFORM}.tar.gz" \
-              -o "${PLATFORM}.tar.gz" || {
-              echo "ERROR: Failed to download ${PLATFORM}.tar.gz"
+          foreach ($plat in $platforms) {
+            Write-Host "Downloading $plat..."
+
+            $url1 = "$base/$plat.tar.gz"
+            $out1 = "$dest/$plat.tar.gz"
+            try {
+              Invoke-WebRequest -Uri $url1 -OutFile $out1 -Headers @{ "User-Agent" = "Mozilla/5.0" } -MaximumRedirection 5
+              Write-Host "  -> OK ($([math]::Round((Get-Item $out1).Length / 1MB, 2)) MB)"
+            } catch {
+              Write-Error "Failed to download $url1 : $_"
               exit 1
             }
 
-            curl -fsSL -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
-              "${BASE}/${PLATFORM}.tar.gz.sha256" \
-              -o "${PLATFORM}.tar.gz.sha256" || {
-              echo "ERROR: Failed to download ${PLATFORM}.tar.gz.sha256"
+            $url2 = "$base/$plat.tar.gz.sha256"
+            $out2 = "$dest/$plat.tar.gz.sha256"
+            try {
+              Invoke-WebRequest -Uri $url2 -OutFile $out2 -Headers @{ "User-Agent" = "Mozilla/5.0" } -MaximumRedirection 5
+            } catch {
+              Write-Error "Failed to download $url2 : $_"
               exit 1
             }
-          done
+          }
 
-          ls -lah
+          Get-ChildItem $dest | Select-Object Name, @{N="SizeMB";E={[math]::Round($_.Length/1MB,2)}}
 
       - name: Push to gh-pages
+        shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add java-cef-builds/
-          git commit -m "Mirror MCEF java-cef builds for commit eaeb3d4" || echo "Nothing to commit"
+          git commit -m "Mirror MCEF java-cef builds for commit eaeb3d4" -ErrorAction SilentlyContinue
           git push origin gh-pages
