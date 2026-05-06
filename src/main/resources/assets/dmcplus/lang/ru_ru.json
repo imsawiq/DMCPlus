@@ -27,7 +27,7 @@
   "message.dmcplus.guard_calls_off": "Навигация вызовов выключена",
   "message.dmcplus.guard_waypoint_set": "Вызов %s: метка %s %s %s",
   "message.dmcplus.guard_waypoint_set_converted": "Вызов %s: координаты из другого мира, показываю %s %s %s в текущем мире",
-  "message.dmcplus.map_mcef_missing": "Встроенная карта требует совместимый MCEF. DMCPlus запущен без карты.",
+
   "message.dmcplus.qr_scanning": "Сканирую QR-код с экрана...",
   "message.dmcplus.qr_failed_capture": "Не удалось получить кадр для сканирования",
   "message.dmcplus.qr_not_found": "QR-код на экране не найден",

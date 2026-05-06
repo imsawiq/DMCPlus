@@ -27,6 +27,9 @@ public class DmcplusClient implements ClientModInitializer {
 
     private static DmcplusClient instance;
 
+    private static final String MCEF_DEFAULT_MIRROR = "https://mcef-download.cinemamod.com";
+    private static final String MCEF_FALLBACK_MIRROR = "https://imsawiq.github.io/DMCPlus";
+
     private final BranchHudFeature branchHudFeature = new BranchHudFeature();
     private final QrScannerFeature qrScannerFeature = new QrScannerFeature();
     private final MapFeature mapFeature = new MapFeature();
@@ -39,6 +42,17 @@ public class DmcplusClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         instance = this;
+
+        // Patch MCEF download mirror to bypass cinemamod.com blocks for RU players.
+        // Players must upload java-cef-builds/{commit}/{platform}.tar.gz to the fallback mirror.
+        try {
+            com.cinemamod.mcef.MCEFSettings settings = com.cinemamod.mcef.MCEF.getSettings();
+            if (MCEF_DEFAULT_MIRROR.equals(settings.getDownloadMirror())) {
+                settings.setDownloadMirror(MCEF_FALLBACK_MIRROR);
+            }
+        } catch (Exception e) {
+            // MCEF not available, skip
+        }
 
         KeyBinding scanQrKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.dmcplus.scan_qr",

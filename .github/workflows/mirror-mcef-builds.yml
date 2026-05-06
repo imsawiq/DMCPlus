@@ -1,0 +1,55 @@
+name: Mirror MCEF java-cef builds to GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'mcef-mirror*'
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download java-cef builds from cinemamod
+        run: |
+          COMMIT="eaeb3d4370aa3526ee237ad1981ad59af3de4dd1"
+          mkdir -p "java-cef-builds/${COMMIT}"
+          cd "java-cef-builds/${COMMIT}"
+
+          BASE="https://mcef-download.cinemamod.com/java-cef-builds/${COMMIT}"
+
+          for PLATFORM in windows-amd64 linux-amd64 macos-amd64; do
+            echo "Downloading ${PLATFORM}..."
+            curl -fsSL -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
+              "${BASE}/${PLATFORM}.tar.gz" \
+              -o "${PLATFORM}.tar.gz" || {
+              echo "ERROR: Failed to download ${PLATFORM}.tar.gz"
+              exit 1
+            }
+
+            curl -fsSL -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
+              "${BASE}/${PLATFORM}.tar.gz.sha256" \
+              -o "${PLATFORM}.tar.gz.sha256" || {
+              echo "ERROR: Failed to download ${PLATFORM}.tar.gz.sha256"
+              exit 1
+            }
+          done
+
+          ls -lah
+
+      - name: Push to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add java-cef-builds/
+          git commit -m "Mirror MCEF java-cef builds for commit eaeb3d4" || echo "Nothing to commit"
+          git push origin gh-pages
