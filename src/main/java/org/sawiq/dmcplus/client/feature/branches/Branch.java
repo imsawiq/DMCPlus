@@ -37,11 +37,11 @@ public enum Branch {
     }
 
     public int axisValue(double x, double z) {
-        return (int) Math.round(Math.abs(this.direction.axisValue(x, z)));
+        return (int) Math.round(this.direction.axisValue(x, z));
     }
 
     public float normalizedDistance(double x, double z) {
-        return (float) MathHelper.clamp(this.axisValue(x, z) / 3000.0D, 0.0D, 1.0D);
+        return (float) MathHelper.clamp(Math.abs(this.axisValue(x, z)) / 3000.0D, 0.0D, 1.0D);
     }
 
     public enum Direction {

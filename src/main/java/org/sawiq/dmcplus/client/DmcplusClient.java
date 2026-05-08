@@ -13,46 +13,44 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.decoration.ItemFrameEntity;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
 import org.lwjgl.glfw.GLFW;
 import org.sawiq.dmcplus.client.feature.QrScannerFeature;
+import org.sawiq.dmcplus.client.feature.admin.AdminPanelFeature;
 import org.sawiq.dmcplus.client.feature.branches.BranchHudFeature;
 import org.sawiq.dmcplus.client.feature.guard.GuardCallFeature;
-import org.sawiq.dmcplus.client.feature.map.MapFeature;
+import org.sawiq.dmcplus.client.feature.rules.RulesFeature;
 import org.sawiq.dmcplus.client.feature.trade.TradeFederationFeature;
 import org.sawiq.dmcplus.client.feature.waypoint.WaypointFeature;
+import org.sawiq.dmcplus.client.update.ModrinthVersionChecker;
 import org.sawiq.dmcplus.client.ui.DmcplusModulesScreen;
+
+import java.net.URI;
 
 public class DmcplusClient implements ClientModInitializer {
 
     private static DmcplusClient instance;
 
-    private static final String MCEF_DEFAULT_MIRROR = "https://mcef-download.cinemamod.com";
-    private static final String MCEF_FALLBACK_MIRROR = "https://imsawiq.github.io/DMCPlus";
-
     private final BranchHudFeature branchHudFeature = new BranchHudFeature();
     private final QrScannerFeature qrScannerFeature = new QrScannerFeature();
-    private final MapFeature mapFeature = new MapFeature();
+    private final RulesFeature rulesFeature = new RulesFeature();
     private final TradeFederationFeature tradeFederationFeature = new TradeFederationFeature();
     private final WaypointFeature waypointFeature = new WaypointFeature();
     private final GuardCallFeature guardCallFeature = new GuardCallFeature(this.waypointFeature);
+    private final AdminPanelFeature adminPanelFeature = new AdminPanelFeature();
+    private final ModrinthVersionChecker versionChecker = new ModrinthVersionChecker();
     private boolean countTradeSlotsKeyDown;
     private boolean manualTradeSlotsKeyDown;
+    private boolean updateCheckStarted;
 
     @Override
     public void onInitializeClient() {
         instance = this;
-
-        // Patch MCEF download mirror to bypass cinemamod.com blocks for RU players.
-        // Players must upload java-cef-builds/{commit}/{platform}.tar.gz to the fallback mirror.
-        try {
-            com.cinemamod.mcef.MCEFSettings settings = com.cinemamod.mcef.MCEF.getSettings();
-            if (MCEF_DEFAULT_MIRROR.equals(settings.getDownloadMirror())) {
-                settings.setDownloadMirror(MCEF_FALLBACK_MIRROR);
-            }
-        } catch (Exception e) {
-            // MCEF not available, skip
-        }
 
         KeyBinding scanQrKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.dmcplus.scan_qr",
@@ -65,13 +63,6 @@ public class DmcplusClient implements ClientModInitializer {
                 "key.dmcplus.toggle_branches_hud",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_H,
-                "category.dmcplus.main"
-        ));
-
-        KeyBinding openMapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.dmcplus.open_map",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_M,
                 "category.dmcplus.main"
         ));
 
@@ -103,9 +94,27 @@ public class DmcplusClient implements ClientModInitializer {
                 "category.dmcplus.main"
         ));
 
+        KeyBinding openRulesKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.dmcplus.open_rules",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_R,
+                "category.dmcplus.main"
+        ));
+
+        KeyBinding adminQuickActionKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.dmcplus.admin_quick_action",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_B,
+                "category.dmcplus.main"
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             boolean inScreen = client.currentScreen != null;
             boolean allowedServer = DmcplusServerScope.isAllowed(client);
+            if (allowedServer) {
+                this.checkForUpdates(client);
+            }
+
             while (scanQrKey.wasPressed()) {
                 if (allowedServer && !inScreen) {
                     this.qrScannerFeature.scanCurrentFrame(client);
@@ -118,21 +127,27 @@ public class DmcplusClient implements ClientModInitializer {
                 }
             }
 
-            while (openMapKey.wasPressed()) {
-                if (allowedServer && !inScreen) {
-                    this.mapFeature.open(client);
-                }
-            }
-
             while (openModulesKey.wasPressed()) {
                 if (allowedServer && !inScreen) {
                     this.openModules(client);
                 }
             }
 
+            while (openRulesKey.wasPressed()) {
+                if (allowedServer && !inScreen) {
+                    this.rulesFeature.open(client);
+                }
+            }
+
             while (clearWaypointKey.wasPressed()) {
                 if (allowedServer && !inScreen) {
                     this.waypointFeature.clear(client);
+                }
+            }
+
+            while (adminQuickActionKey.wasPressed()) {
+                if (allowedServer && !inScreen) {
+                    this.adminPanelFeature.executeQuickAction(client);
                 }
             }
 
@@ -155,6 +170,7 @@ public class DmcplusClient implements ClientModInitializer {
 
             if (allowedServer) {
                 this.branchHudFeature.tick(client);
+                this.tradeFederationFeature.tick(client);
                 this.waypointFeature.tick(client);
             }
         });
@@ -217,8 +233,8 @@ public class DmcplusClient implements ClientModInitializer {
         return this.qrScannerFeature;
     }
 
-    public MapFeature getMapFeature() {
-        return this.mapFeature;
+    public RulesFeature getRulesFeature() {
+        return this.rulesFeature;
     }
 
     public TradeFederationFeature getTradeFederationFeature() {
@@ -233,11 +249,41 @@ public class DmcplusClient implements ClientModInitializer {
         return this.guardCallFeature;
     }
 
+    public AdminPanelFeature getAdminPanelFeature() {
+        return this.adminPanelFeature;
+    }
+
     public void openModules(MinecraftClient client) {
         if (!DmcplusServerScope.isAllowed(client)) {
             return;
         }
 
         client.setScreen(new DmcplusModulesScreen(client.currentScreen));
+    }
+
+    private void checkForUpdates(MinecraftClient client) {
+        if (this.updateCheckStarted || client.player == null) {
+            return;
+        }
+        this.updateCheckStarted = true;
+
+        this.versionChecker.checkAsync().thenAccept(result -> {
+            if (result == null) {
+                return;
+            }
+
+            client.execute(() -> {
+                if (client.player == null) {
+                    return;
+                }
+
+                MutableText link = Text.literal(result.version()).formatted(Formatting.AQUA, Formatting.UNDERLINE)
+                        .styled(style -> style
+                                .withClickEvent(new ClickEvent.OpenUrl(URI.create(result.url())))
+                                .withHoverEvent(new HoverEvent.ShowText(Text.translatable("message.dmcplus.update_open")))
+                        );
+                client.player.sendMessage(Text.translatable("message.dmcplus.update_available", link).formatted(Formatting.GOLD), false);
+            });
+        });
     }
 }

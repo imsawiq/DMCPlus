@@ -28,6 +28,7 @@ public class TradeFederationScreen extends Screen {
 
     private TextFieldWidget searchField;
     private TextFieldWidget slotsField;
+    private ButtonWidget autoSearchButton;
     private List<TradeListing> currentResults = List.of();
     private TradeListing countedListing;
     private ContainerSlotCount countedSlots;
@@ -46,10 +47,11 @@ public class TradeFederationScreen extends Screen {
         ScreenSections content = this.content(panel);
         ScreenSections.Row form = this.formRow(content);
 
-        int scanWidth = 72;
+        int scanWidth = 54;
+        int autoWidth = 70;
         int slotsWidth = 62;
         int gap = 6;
-        int searchWidth = form.width() - scanWidth - slotsWidth - gap * 2;
+        int searchWidth = form.width() - scanWidth - autoWidth - slotsWidth - gap * 3;
 
         this.searchField = this.addDrawableChild(new TextFieldWidget(
                 this.textRenderer,
@@ -61,6 +63,7 @@ public class TradeFederationScreen extends Screen {
         ));
         this.searchField.setMaxLength(60);
         this.searchField.setPlaceholder(Text.translatable("screen.dmcplus.trade.search_placeholder"));
+        this.searchField.setText(this.feature.getAutoSearchQuery());
 
         this.slotsField = this.addDrawableChild(new TextFieldWidget(
                 this.textRenderer,
@@ -77,6 +80,11 @@ public class TradeFederationScreen extends Screen {
                 Text.translatable("screen.dmcplus.trade.scan"),
                 button -> this.feature.scanNearby(this.client)
         ).dimensions(form.right() - scanWidth, form.y() + 11, scanWidth, 20).build());
+
+        this.autoSearchButton = this.addDrawableChild(ButtonWidget.builder(
+                this.autoSearchButtonText(),
+                button -> this.toggleAutoSearch()
+        ).dimensions(form.right() - scanWidth - gap - autoWidth, form.y() + 11, autoWidth, 20).build());
 
         this.addDrawableChild(ButtonWidget.builder(
                 Text.translatable("gui.back"),
@@ -113,10 +121,11 @@ public class TradeFederationScreen extends Screen {
         );
 
         ScreenSections.Row form = this.formRow(content);
-        int scanWidth = 72;
+        int scanWidth = 54;
+        int autoWidth = 70;
         int slotsWidth = 62;
         int gap = 6;
-        int searchWidth = form.width() - scanWidth - slotsWidth - gap * 2;
+        int searchWidth = form.width() - scanWidth - autoWidth - slotsWidth - gap * 3;
         context.drawTextWithShadow(this.textRenderer, Text.translatable("screen.dmcplus.trade.search"), form.x(), form.y(), 0xFFCFCFCF);
         context.drawTextWithShadow(this.textRenderer, Text.translatable("screen.dmcplus.trade.slots"), form.x() + searchWidth + gap, form.y(), 0xFFCFCFCF);
         context.drawTextWithShadow(this.textRenderer, Text.translatable("screen.dmcplus.trade.results"), content.x(), panel.y() + 82, 0xFFE8E8E8);
@@ -344,6 +353,24 @@ public class TradeFederationScreen extends Screen {
 
         this.countedSlots = count.get();
         this.countStatus = "";
+    }
+
+    private void toggleAutoSearch() {
+        if (this.feature.isAutoSearchActive()) {
+            this.feature.stopAutoSearch(this.client);
+        } else {
+            this.feature.startAutoSearch(this.client, this.searchField != null ? this.searchField.getText() : "");
+        }
+
+        if (this.autoSearchButton != null) {
+            this.autoSearchButton.setMessage(this.autoSearchButtonText());
+        }
+    }
+
+    private Text autoSearchButtonText() {
+        return Text.translatable(this.feature.isAutoSearchActive()
+                ? "screen.dmcplus.trade.auto_stop"
+                : "screen.dmcplus.trade.auto_start");
     }
 
     private ScreenSections panel() {

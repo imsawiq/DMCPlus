@@ -23,9 +23,13 @@ import java.util.Optional;
 public class TradeFederationFeature {
 
     private static final double ATTACHED_FRAME_SCAN_RADIUS = 5.0D;
+    private static final int AUTO_SCAN_INTERVAL_TICKS = 12;
 
     private final List<TradeListing> listings = new ArrayList<>();
     private String lastStatus = "Нет сканирования";
+    private String autoSearchQuery = "";
+    private boolean autoSearchActive;
+    private int autoScanCooldown;
     private BlockPos lastUsedBlockPos;
     private BlockPos lastUsedFrameBlockPos;
     private boolean manualSlotInputActive;
@@ -36,11 +40,11 @@ public class TradeFederationFeature {
     }
 
     public void scanNearby(MinecraftClient client) {
-        this.listings.clear();
-        this.listings.addAll(TradeScanner.scan(client));
+        int added = this.mergeListings(TradeScanner.scan(client));
         this.lastStatus = this.listings.isEmpty()
                 ? "Рядом ничего не найдено"
-                : "Найдено торговых точек: " + this.listings.size();
+                : "Найдено торговых точек: " + this.listings.size()
+                + (added > 0 ? " (новых: " + added + ")" : "");
 
         if (client.player != null) {
             client.player.sendMessage(
@@ -50,14 +54,75 @@ public class TradeFederationFeature {
         }
     }
 
+    public void tick(MinecraftClient client) {
+        if (!this.autoSearchActive || client == null || client.player == null || client.world == null) {
+            return;
+        }
+
+        if (this.autoScanCooldown > 0) {
+            this.autoScanCooldown--;
+            return;
+        }
+        this.autoScanCooldown = AUTO_SCAN_INTERVAL_TICKS;
+
+        List<TradeListing> nearby = TradeScanner.scan(client);
+        int added = 0;
+        int addedMatches = 0;
+        for (TradeListing listing : nearby) {
+            boolean wasAdded = this.upsertListing(listing);
+            if (wasAdded) {
+                added++;
+                if (this.matchesQuery(listing, this.autoSearchQuery)) {
+                    addedMatches++;
+                }
+            }
+        }
+        List<TradeListing> matches = this.search(client, this.autoSearchQuery);
+        String queryText = this.autoSearchQuery.isBlank() ? "всё" : this.autoSearchQuery;
+        this.lastStatus = "Автопоиск: " + queryText + ". Совпадений: " + matches.size();
+
+        if (added > 0 && addedMatches > 0) {
+            client.player.sendMessage(
+                    Text.literal("Автопоиск нашёл: " + addedMatches + ". Всего в списке: " + matches.size())
+                            .formatted(Formatting.GREEN),
+                    true
+            );
+        }
+    }
+
+    public void startAutoSearch(MinecraftClient client, String query) {
+        this.autoSearchQuery = query == null ? "" : query.trim();
+        this.autoSearchActive = true;
+        this.autoScanCooldown = 0;
+        this.lastStatus = "Автопоиск включён: " + (this.autoSearchQuery.isBlank() ? "все товары" : this.autoSearchQuery);
+        if (client != null && client.player != null) {
+            client.player.sendMessage(Text.literal(this.lastStatus).formatted(Formatting.GREEN), true);
+        }
+    }
+
+    public void stopAutoSearch(MinecraftClient client) {
+        this.autoSearchActive = false;
+        this.autoScanCooldown = 0;
+        this.lastStatus = "Автопоиск остановлен. В списке: " + this.listings.size();
+        if (client != null && client.player != null) {
+            client.player.sendMessage(Text.literal(this.lastStatus).formatted(Formatting.YELLOW), true);
+        }
+    }
+
+    public boolean isAutoSearchActive() {
+        return this.autoSearchActive;
+    }
+
+    public String getAutoSearchQuery() {
+        return this.autoSearchQuery;
+    }
+
     public List<TradeListing> search(MinecraftClient client, String query) {
         String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
         List<TradeListing> result = new ArrayList<>();
 
         for (TradeListing listing : this.listings) {
-            if (normalizedQuery.isEmpty()
-                    || listing.productName().toLowerCase(Locale.ROOT).contains(normalizedQuery)
-                    || listing.displayName().toLowerCase(Locale.ROOT).contains(normalizedQuery)) {
+            if (this.matchesQuery(listing, normalizedQuery)) {
                 result.add(listing);
             }
         }
@@ -78,6 +143,40 @@ public class TradeFederationFeature {
 
     public String getLastStatus() {
         return this.lastStatus;
+    }
+
+    private int mergeListings(List<TradeListing> scannedListings) {
+        int added = 0;
+        for (TradeListing listing : scannedListings) {
+            if (this.upsertListing(listing)) {
+                added++;
+            }
+        }
+        return added;
+    }
+
+    private boolean upsertListing(TradeListing listing) {
+        for (int index = 0; index < this.listings.size(); index++) {
+            TradeListing existing = this.listings.get(index);
+            if (this.sameTradePoint(existing, listing)) {
+                this.listings.set(index, listing);
+                return false;
+            }
+        }
+
+        this.listings.add(listing);
+        return true;
+    }
+
+    private boolean sameTradePoint(TradeListing left, TradeListing right) {
+        return left.position().equals(right.position()) && left.item() == right.item();
+    }
+
+    private boolean matchesQuery(TradeListing listing, String query) {
+        String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        return normalizedQuery.isEmpty()
+                || listing.productName().toLowerCase(Locale.ROOT).contains(normalizedQuery)
+                || listing.displayName().toLowerCase(Locale.ROOT).contains(normalizedQuery);
     }
 
     public Optional<ContainerSlotCount> countOpenContainerSlots(MinecraftClient client, TradeListing listing) {
