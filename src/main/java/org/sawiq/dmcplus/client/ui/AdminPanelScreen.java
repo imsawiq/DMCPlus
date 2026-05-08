@@ -20,6 +20,7 @@ public class AdminPanelScreen extends Screen {
     private static final int PANEL_HEIGHT = 318;
     private static final int CONTENT_PADDING = 14;
     private static final int FIELD_HEIGHT = 18;
+    private static final int ACTION_ROW_HEIGHT = 28;
 
     private final Screen parent;
     private final AdminPanelFeature feature;
@@ -42,7 +43,7 @@ public class AdminPanelScreen extends Screen {
         int gap = 6;
         int targetWidth = 126;
         int durationWidth = 84;
-        int buttonWidth = 82;
+        int buttonWidth = 92;
 
         this.targetField = this.addDrawableChild(new TextFieldWidget(
                 this.textRenderer,
@@ -87,12 +88,12 @@ public class AdminPanelScreen extends Screen {
                         this.feature.setQuickAction(action);
                         this.clearAndInit();
                     }
-            ).dimensions(content.x(), rowY + 11, buttonWidth, 20).build());
+            ).dimensions(content.x(), rowY, buttonWidth, 20).build());
 
             TextFieldWidget templateField = this.addDrawableChild(new TextFieldWidget(
                     this.textRenderer,
                     content.x() + buttonWidth + gap,
-                    rowY + 12,
+                    rowY + 1,
                     content.width() - buttonWidth - gap - 70,
                     FIELD_HEIGHT,
                     Text.literal(action.displayName())
@@ -107,8 +108,8 @@ public class AdminPanelScreen extends Screen {
                         this.saveSettings();
                         this.feature.executeAction(this.client, action);
                     }
-            ).dimensions(content.right() - 64, rowY + 11, 64, 20).build());
-            y += 30;
+            ).dimensions(content.right() - 64, rowY, 64, 20).build());
+            y += ACTION_ROW_HEIGHT;
         }
 
         this.addDrawableChild(ButtonWidget.builder(
@@ -150,12 +151,6 @@ public class AdminPanelScreen extends Screen {
         context.drawTextWithShadow(this.textRenderer, Text.translatable("screen.dmcplus.admin.target_field"), content.x(), y, 0xFFCFCFCF);
         context.drawTextWithShadow(this.textRenderer, Text.translatable("screen.dmcplus.admin.duration"), content.x() + targetWidth + gap, y, 0xFFCFCFCF);
         context.drawTextWithShadow(this.textRenderer, Text.translatable("screen.dmcplus.admin.reason"), content.x() + targetWidth + durationWidth + gap * 2, y, 0xFFCFCFCF);
-
-        y += 39;
-        for (AdminAction action : AdminAction.values()) {
-            context.drawTextWithShadow(this.textRenderer, Text.literal(action.displayName()), content.x() + 88, y, 0xFFCFCFCF);
-            y += 30;
-        }
 
         context.drawTextWithShadow(
                 this.textRenderer,
